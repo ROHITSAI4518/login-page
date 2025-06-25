@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google & Email Login</title>
+  <style>
+    /* Basic CSS for centering and styling the login page */
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+    .container {
+      text-align: center;
+      padding: 20px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 300px;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      margin: 5px;
+    }
+    #googleSignInBtn {
+      background-color: #4285F4;
+      color: white;
+    }
+    #emailLoginBtn, #emailRegisterBtn {
+      background-color: #5cb85c;
+      color: white;
+    }
+    #signOutBtn {
+      display: none;
+      background-color: #d9534f;
+      color: white;
+    }
+    #userInfo {
+      margin-top: 20px;
+      display: none;
+    }
+    #errorMessage {
+      color: red;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Login</h2>
+    <!-- Email/Password Form -->
+    <input type="email" id="emailInput" placeholder="Email" required>
+    <input type="password" id="passwordInput" placeholder="Password" required>
+    <button id="emailLoginBtn">Login with Email</button>
+    <button id="emailRegisterBtn">Register with Email</button>
+    <!-- Google Sign-In -->
+    <button id="googleSignInBtn">Sign in with Google</button>
+    <!-- Sign Out -->
+    <button id="signOutBtn">Sign Out</button>
+    <!-- User Info -->
+    <div id="userInfo">
+      <img id="userPhoto" src="" alt="User Photo" style="border-radius: 50%; width: 50px;">
+      <p id="userName"></p>
+      <p id="userEmail"></p>
+    </div>
+    <!-- Error Message -->
+    <p id="errorMessage"></p>
+  </div>
+
+  <!-- Firebase SDK (Modular) -->
+  <script type="module">
+    // Import Firebase modules
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js";
+
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDlsivCiVn0jpvtiSqdJ6TsWfy4N_jD74M",
+      authDomain: "hitman-cc796.firebaseapp.com",
+      databaseURL: "https://hitman-cc796-default-rtdb.firebaseio.com",
+      projectId: "hitman-cc796",
+      storageBucket: "hitman-cc796.firebasestorage.app",
+      messagingSenderId: "482666091304",
+      appId: "1:482666091304:web:e50bed30b457062250761d"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // DOM elements
+    const emailInput = document.getElementById('emailInput');
+    const passwordInput = document.getElementById('passwordInput');
+    const emailLoginBtn = document.getElementById('emailLoginBtn');
+    const emailRegisterBtn = document.getElementById('emailRegisterBtn');
+    const googleSignInBtn = document.getElementById('googleSignInBtn');
+    const signOutBtn = document.getElementById('signOutBtn');
+    const userInfo = document.getElementById('userInfo');
+    const userPhoto = document.getElementById('userPhoto');
+    const userName = document.getElementById('userName');
+    const userEmail = document.getElementById('userEmail');
+    const errorMessage = document.getElementById('errorMessage');
+
+    // Email Login Handler
+    emailLoginBtn.addEventListener('click', async () => {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+      if (!email || !password') {
+        errorMessage.textContent = 'Please enter email and password';
+        return;
+      }
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        console.log('Email login successful');
+        errorMessage.textContent = '';
+      } catch (error) {
+        errorMessage.textContent = error.message || 'Login failed';
+        console.error('Email login error:', error);
+      });
+    });
+
+    // Email Register Handler
+    emailRegisterBtn.addEventListener('click', async () => {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+      if (!email || !password) {
+        errorMessage.textContent = 'Please enter email and password';
+        return;
+      }
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        // Save user data to Firestore
+        await setDoc(doc(collection(db, 'users'), user.uid), {
+          name: user.email.split(''@'')[0], // Default name from email
+          email,
+          photoURL: null,
+          lastLogin: serverTimestamp()
+        });
+        console.log('User registered and data saved');
+        errorMessage.textContent = '';
+      } catch (error) {
+        errorMessage.textContent = error.message || 'Registration failed';
+        console.error('Email registration error:', error);
+      });
+    });
+
+    // Google Sign-In Handler
+    googleSignInBtn.addEventListener('click', async () => {
+      const provider = new GoogleAuthProvider();
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        // Save user data to Firestore
+        await setDoc(doc(collection(db, 'users'), user.uid), {
+          name: user.displayName || 'Unknown',
+          email: user.email,
+          photoURL: user.photoURL || null,
+          lastLogin: serverTimestamp()
+        }, { merge: true });
+        console.log('User data saved in to Firestore');
+        errorMessage.textContent = '';
+      } catch (error) {
+        errorMessage.textContent = error.message || 'Google Sign-In failed';
+        console.error('Error during sign-in:', error);
+      });
+    });
+
+    // Sign Out Handler
+    signOutBtn.addEventListener('click', async () => {
+      try {
+        await signOut(auth);
+        console.log('User signed out');
+        errorMessage.textContent = '';
+      } catch (error) {
+        errorMessage.textContent = 'Sign out failed';
+        console.error('Error during sign-out:', error);
+      });
+    });
+
+    // Auth State Listener
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // User is signed in
+        emailInput.value = '';
+        passwordInput.value = '';
+        emailLoginBtn.style.display = 'none';
+        emailRegisterBtn.style.display = 'none';
+        googleSignInBtn.style.display = 'none';
+        signOutBtn.style.display = 'block';
+        userInfo.style.display = 'block';
+        userPhoto.src = user.photoURL || '';
+        userName.textContent = `Name: ${user.displayName || user.email.split(' '@'')[0] || 'Unknown'}`;
+        userEmail.textContent = `Email: ${user.email || ''}`;
+      } else {
+        // User is signed out
+        emailLoginBtn.style.display = 'block';
+        emailRegisterBtn.style.display = 'block';
+        googleSignInBtn.style.display = 'block';
+        signOutBtn.style.display = 'none';
+        userInfo.style.display = 'none';
+        userPhoto.src = '';
+        userName.textContent = '';
+        userEmail.textContent = '';
+      }
+    });
+  <script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+  import { getdatabase } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-database.js";
+  import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-auth";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyDlsivCiVn0jpvtiSqdJ6TsWfy4N_jD74M",
+    authDomain: "hitman-cc796.firebaseapp.com",
+    databaseURL: "https://hitman-cc796-default-rtdb.firebaseio.com",
+    projectId: "hitman-cc796",
+    storageBucket: "hitman-cc796.firebasestorage.app",
+    messagingSenderId: "482666091304",
+    appId: "1:482666091304:web:e50bed30b457062250761d"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const database = getdatabase(app)
+  const auth = getAuth();
+
+  signUp.addEventListener('click',(e) =>{
+   
+   var email = document.getElementById('email').value;
+   var password = document.getElementById('password').value;
+   var userName = document.getElementById('userName').value;
+
+    .then((userCredential) => {
+     const user = userCredential.user;
+     alert('user created!');
+    
+  })
+  .catch((error) => {
+    const errorCode = error.code;
+    const errorMessage = error.message;
+
+    alert('errorMessage');
+    // ..
+  });  
+
+  });
+</script>
+</body>
+</html>
